@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 import struct
-
 from icecream import ic
 from ctypes import *
 import serial
@@ -10,6 +9,7 @@ import threading
 import os
 import sys
 import csv
+import signal
 
 
 
@@ -45,8 +45,14 @@ class DJIController():
         self.Seq_Init_Data = 0x0002
 
         # CAN BUS
-        self.bus = can.interface.Bus(bustype="socketcan", channel=can_bus, bitrate=1000000)
-        self.bus.flush_tx_buffer()
+        try:
+            self.bus = can.interface.Bus(interface="socketcan", channel=can_bus, bitrate=1000000)
+            print(f"CAN bus {can_bus} initialized successfully.")
+        except can.CanError as e:
+            print(f"Error initializing CAN bus: {e}")
+            sys.exit(1)
+
+        #self.bus.flush_tx_buffer()                     # removed by Jorg
         self.send_id = int("223", 16)
         self.recv_id = int("222", 16)
         # CAN Specs
@@ -91,6 +97,16 @@ class DJIController():
         self.b.start()
         self.b2 = threading.Thread(name='background', target=self.request_cur_data)
         self.b2.start()
+
+
+
+    def __del__(self):
+        """Ensure the CAN bus is properly shut down."""
+        try:
+            self.bus.shutdown()
+            print("CAN bus shut down successfully.")
+        except AttributeError:
+            pass
 
     def debugPrint(self, debug_msg):
         if self.debug:
@@ -264,6 +280,14 @@ class DJIController():
                 except can.CanError:
                     print("Message NOT sent")
 
+    def _fill_frame(self, frame, can_id, data):
+        frame.ID = can_id
+        frame.SendType = self.NORMAL_SEND
+        frame.RemoteFlag = self.DATA_FRAME
+        frame.ExternFlag = self.STD_FRAME
+        frame.DataLen = len(data)
+        frame.Data[:len(data)] = data
+
     def can_buffer_to_full_frame(self):
         # assembling individual CAN messages into whole FRAMES
         full_msg_frames = []
@@ -367,12 +391,13 @@ class DJIController():
 
 
 if __name__ == "__main__":
+
     try:
-
-
         controller = DJIController("can0")
+        # Remove or comment out the os.system('clear') line to avoid TERM-related issues.
+        # os.system('clear')
 
-        controller.bus.flush_tx_buffer()
+        #controller.bus.flush_tx_buffer()           ## TODO removed by Jorg
         os.system('clear')
         print("\n"+"\n"+"\n")
         print("         Starting Log Recording")
@@ -394,7 +419,7 @@ if __name__ == "__main__":
 
         os.system('rm -r '+ file_dir + '/dji.log')
         os.system('touch ' + file_dir + '/dji.log')
-        controller.bus.flush_tx_buffer()
+        #controller.bus.flush_tx_buffer()       ## TODO removed by Jorg
         while True:
             os.system('touch ' + file_dir + '/dji.log')
             output = "Pitch: " + \
@@ -408,7 +433,12 @@ if __name__ == "__main__":
                     int(controller.focus)) + "\n")
             time.sleep(.05)
     except KeyboardInterrupt:
-        os.system('clear')
+        # Remove or comment out the os.system('clear') line to avoid TERM-related issues.
+        # os.system('clear')
         os._exit(0)
 
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.exit(0)
 
+signal.signal(signal.SIGINT, signal_handler)

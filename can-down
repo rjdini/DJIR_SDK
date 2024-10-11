@@ -1,2 +1,10 @@
-#! /bin/bash
+#!/bin/bash
+
+# Bring down the can0 interface
 sudo ip link set can0 down
+
+# Release the slcand interface
+sudo pkill slcand
+
+# Optional: Verify that the interface is down
+ip link show can0

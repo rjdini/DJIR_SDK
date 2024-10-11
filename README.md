@@ -53,3 +53,9 @@ pip3 install pyserial
 pip3 install playsound
 ```
 
+## jc / rjd updates oct 2024
+canbus initialization and close down improved.
+Tested on Canable Pro V2 using standard (not CandleLight) firmware
+udev rules for /dev/canable
+Modified can-up can-down for /dev/canable
+Tested on RS4 
