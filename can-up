@@ -1,15 +1,3 @@
-#!/bin/bash
-# Using Canable Pro V2 in standard mode (not flashed for CandleLight)
-# Assumes /dev/canable defined in udev rules in /etc/udev/rules.d/99-canable.rules 
-
-# Bring up CANable interface using slcand
-sudo slcand -o -c -s8 /dev/canable can0
-
-# Bring up the can0 interface
-sudo ip link set can0 up
-
-# can0 tx queue length
+#! /bin/bash
 sudo ifconfig can0 txqueuelen 5000
-
-# Verify the interface is up
-ip link show can0
+sudo ip link set can0 up type can bitrate 1000000

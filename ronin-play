@@ -11,7 +11,7 @@ import os
 import sys
 import csv
 import pandas as pd
-# from playsound import playsound
+from playsound import playsound
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -44,15 +44,9 @@ class DJIController():
         # SEQ
         self.Seq_Init_Data = 0x0002
 
-        # CAN BUS initialization
-        try:
-            self.bus = can.interface.Bus(interface="socketcan", channel=can_bus, bitrate=1000000)
-            print(f"CAN bus {can_bus} initialized successfully.")
-        except can.CanError as e:
-            print(f"Error initializing CAN bus: {e}")
-            sys.exit(1)
-
-#        self.bus.flush_tx_buffer()
+        # CAN BUS
+        self.bus = can.interface.Bus(bustype="socketcan", channel=can_bus, bitrate=1000000)
+        self.bus.flush_tx_buffer()
         self.send_id = int("223", 16)
         self.recv_id = int("222", 16)
         # CAN Specs
@@ -66,38 +60,37 @@ class DJIController():
         #
         self.STD_FRAME = 0
         self.EXT_FRAME = 1
-
-        # Add this line to initialize last_msg_id
-        self.last_msg_id = 0
-
-
-
-        self.send_id = int("223", 16)
-        self.recv_id = int("222", 16)
-        self.FRAME_LEN = 8
+        # Data storage
         self.can_recv_msg_buffer = []
         self.can_recv_msg_len_buffer = []
         self.can_recv_buffer_len = 10
+        # Standard IDs
+        self.cmd_callback_posControl = 0x0E00
+        self.cmd_callback_speedControl = 0x0E01
+        self.cmd_callback_getGimbalInfo = 0x0E02
+        self.cmd_callback_setAngleLimit = 0x0E03
+        self.cmd_callback_getAngleLimit = 0x0E04
+        self.cmd_callback_setMotorStrength = 0x0E05
+        self.cmd_callback_getMotorStrength = 0x0E06
+        self.cmd_callback_setPush = 0x0E07
+        self.cmd_callback_pushData = 0x0E08
+        self.cmd_callback_cameraControl = 0x0D00
+        self.cmd_callback_focusControl = 0x0D01
+        # Current Position
         self.yaw = 0.0
         self.roll = 0.0
         self.pitch = 0.0
         self.focus = 0
-        self.request_rate = 0.1
+        # Multithreading CAN Callback
+        self.request_rate = 0.1  # seconds until next
+        self.last_msg_id = 0
         self.debug = False
-
-        # Start threads
+        # self.f = open("debug.log", "w")
+        self.msg_id = 0
         self.b = threading.Thread(name='background', target=self.can_callback)
         self.b.start()
         self.b2 = threading.Thread(name='background', target=self.request_cur_data)
         self.b2.start()
-
-    def __del__(self):
-        """Ensure the CAN bus is properly shut down."""
-        try:
-            self.bus.shutdown()
-            print("CAN bus shut down successfully.")
-        except AttributeError:
-            pass
 
     def debugPrint(self, debug_msg):
         if self.debug:
@@ -296,8 +289,8 @@ class DJIController():
         validated = False
         check_sum = ':'.join(data_frame[-4:])
         data = ':'.join(data_frame[:-4])
-        #  print(len(hex_data))
-        #  print(data)
+        # # print(len(hex_data))
+        # # print(data)
         if len(data_frame) >= 8:
             if check_sum == calc_crc32(data):
                 #         # print("Approved Message: " + str(hex_data))
@@ -372,36 +365,39 @@ class DJIController():
                             self.debugPrint("invalid message")
                     # ic(full_msg_frames)
 
+
+
+
 if __name__ == "__main__":
 
     controller = DJIController("can0")
 
-#    controller.bus.flush_tx_buffer()
+    controller.bus.flush_tx_buffer()
     os.system('clear')
     print("\n" + "\n" + "\n")
     print("         Starting Log Playback")
-
+    
 
     #WAIT TIME BEFORE FULL LOG PLAYBACK
     #FOR PERFORMANCE PREP TIME
     time.sleep(1)
-
-
+    
+    
     print("         in" + "\n")
     print("         5...")
-    #  playsound(file_dir + "/tone-1000.wav")
+    playsound(file_dir + "/tone-1000.wav")
     time.sleep(1)
     print("         4...")
-    #  playsound(file_dir + "/tone-1000.wav")
+    playsound(file_dir + "/tone-1000.wav")
     time.sleep(1)
     print("         3...")
-    #  playsound(file_dir + "/tone-1000.wav")
+    playsound(file_dir + "/tone-1000.wav")
     time.sleep(1)
     print("         2...")
-    #  playsound(file_dir + "/tone-1000.wav")
+    playsound(file_dir + "/tone-1000.wav")
     time.sleep(1)
     print("         1...")
-    #  playsound(file_dir + "/tone-1000.wav")
+    playsound(file_dir + "/tone-1000.wav")
     time.sleep(1)
     print("         MARK" + "\n")
     print("         ■■■■■■■■■■■■")
@@ -410,17 +406,17 @@ if __name__ == "__main__":
     print("         ■■■■■■■■■■■■")
     print("         ■■■■■■■■■■■■")
     print("\n")
-
-
+    
+    
     #WAIT TIME BEFORE FULL LOG PLAYBACK
     #FOR PERFORMANCE PREP TIME
-
+    
     # time.sleep(2)
-
-
-    #  playsound(file_dir + "/tone.wav")
+    
+    
+    playsound(file_dir + "/tone.wav")
     time.sleep(.5)
-    # playsound(file_dir + "/tone.wav")
+    playsound(file_dir + "/tone.wav")
     filename = (file_dir + "/dji.log")
     #print(filename)
 
@@ -436,18 +432,17 @@ if __name__ == "__main__":
         p = float(row[1])
         r = float(row[2])
         f = int(row[3])
-
+        
         #TO TURN ON/OFF POS DEBUG PRINTING
         print(y,p,r,f)
-
+        
         controller.setPosControl(y, r, p)
         controller.setFocControl(f)
         time.sleep(.15)
     print("\n" + "\n" + "\n")
     print('         Log Playback Complete, returning to home')
-#    controller.bus.flush_tx_buffer()
+    controller.bus.flush_tx_buffer()
     controller.setPosControl(0, 0, 0)
     time.sleep(4)
-    # Remove or comment out the os.system('clear') line to avoid TERM-related issues.
-    # os.system('clear')
+    os.system('clear')
     os._exit(0)

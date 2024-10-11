@@ -9,8 +9,6 @@ import os
 import sys
 import csv
 
-from mpmath.libmp import bitcount
-
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
 from check_sum import *
@@ -43,13 +41,8 @@ class DJIController():
         self.Seq_Init_Data = 0x0002
 
         # CAN BUS
-        try:
-            self.bus = can.interface.Bus(interface="socketcan", channel=can_bus, bitrate=1000000)
-            print(f"CAN bus {can_bus} initialized successfully.")
-        except can.CanError as e:
-            print(f"Error initializing CAN bus: {e}")
-            sys.exit(1)
-
+        self.bus = can.interface.Bus(bustype="socketcan", channel=can_bus, bitrate=1000000)
+        self.bus.flush_tx_buffer()
         self.send_id = int("223", 16)
         self.recv_id = int("222", 16)
         # CAN Specs
@@ -85,7 +78,7 @@ class DJIController():
         self.pitch = 0.0
         self.focus = 0
         # Multithreading CAN Callback
-        self.request_rate = 0.1  # seconds until next
+        self.request_rate = 0.1     #seconds until next
         self.last_msg_id = 0
         self.debug = False
         # self.f = open("debug.log", "w")
@@ -94,15 +87,6 @@ class DJIController():
         self.b.start()
         self.b2 = threading.Thread(name='background', target=self.request_cur_data)
         self.b2.start()
-
-    def __del__(self):
-        """Ensure the CAN bus is properly shut down."""
-        try:
-            self.bus.shutdown()
-            print("CAN bus shut down successfully.")
-        except AttributeError:
-            # In case the bus was never initialized or has already been shut down
-            pass
 
     def debugPrint(self, debug_msg):
         if self.debug:
@@ -386,7 +370,6 @@ if __name__ == "__main__":
 
     controller = DJIController("can0")
 
-    # Example interaction logic from original code.
     mode = int(input("CommandID: "))
     if mode == 0:
         while True:
@@ -402,7 +385,7 @@ if __name__ == "__main__":
                 if -180.0 <= yaw <= 180.0 and -180.0 <= roll <= 180.0 and -180.0 <= pitch <= 180.0:
                     controller.setPosControl(yaw, roll, pitch)
                 else:
-                    print("Values out of bound")
+                    print("Vales out of bound")
             else:
                 print("Not enough values")
     elif mode == 1:
@@ -440,7 +423,7 @@ if __name__ == "__main__":
     elif mode ==3:
         # controller.debug = True
         # logPositions
-        print("Starting to log")
+        print("Staring to log")
         time.sleep(1)
         os.system('rm -r dji.log')
         controller.bus.flush_tx_buffer()
@@ -454,6 +437,7 @@ if __name__ == "__main__":
             logFile = open("dji.log", "a+")
             logFile.write(str(int(controller.yaw)) + "," + str(int(controller.pitch)) + "," + str(int(controller.roll)) + "," + str(int(controller.focus)) + "\n")
             time.sleep(.05)
+
     else:
         while True:
             with open(file_dir + "/dji.log", newline="") as f:
